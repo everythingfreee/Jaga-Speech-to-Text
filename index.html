@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speech to Text with Translation</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+      background-color: #f0f0f0;
+    }
+
+    h1 {
+      color: #333;
+      font-size: 2.5rem;
+      animation: fadeIn 2s ease-in-out;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      background-color: #007bff;
+      border: none;
+      border-radius: 5px;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+      transform: scale(1.05);
+    }
+
+    button:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
+
+    #transcript, #translatedText {
+      margin-top: 20px;
+      padding: 10px;
+      background-color: white;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      font-size: 18px;
+      color: #333;
+      box-shadow: 0px 4px 8px rgba(0,0,0,0.1);
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      width: 400px;
+      font-size: 16px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-shadow: 0px 4px 8px rgba(0,0,0,0.1);
+      transition: transform 0.2s;
+    }
+
+    input[type="text"]:focus {
+      transform: scale(1.03);
+      outline: none;
+      border-color: #007bff;
+    }
+
+    .recording #recordIndicator {
+      animation: pulse 1s infinite;
+    }
+
+    #recordIndicator {
+      width: 20px;
+      height: 20px;
+      margin: 10px auto;
+      background-color: red;
+      border-radius: 50%;
+      display: none;
+    }
+
+    .recording #recordIndicator {
+      display: block;
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        background-color: red;
+      }
+      50% {
+        transform: scale(1.5);
+        background-color: #ff4b4b;
+      }
+      100% {
+        transform: scale(1);
+        background-color: red;
+      }
+    }
+
+    @keyframes fadeIn {
+      0% {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    #rightClickMessage {
+      display: none;
+      background-color: #ff6666;
+      color: white;
+      padding: 10px;
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-radius: 5px;
+      box-shadow: 0px 4px 8px rgba(0,0,0,0.1);
+      z-index: 100;
+      animation: fadeIn 0.5s ease;
+    }
+
+    #rightClickMessage.show {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>Speech to Text with Translation</h1>
+
+  <!-- Speech Recognition Controls -->
+  <div id="controls">
+    <button id="startBtn" onclick="startRecognition()">Start</button>
+    <button id="stopBtn" onclick="stopRecognition()" disabled>Stop</button>
+  </div>
+
+  <div id="recordIndicator"></div>
+
+  <!-- Original Transcript -->
+  <div>
+    <h3>Original Transcript or Typed Text:</h3>
+    <div id="transcript"></div>
+  </div>
+
+  <!-- Text Input for Manual Typing -->
+  <div>
+    <h3>Or Type Here:</h3>
+    <input type="text" id="manualInput" placeholder="Type your text here" oninput="updateTranscript()" />
+  </div>
+
+  <!-- Translation Controls -->
+  <div>
+    <h3>Select Translation Languages:</h3>
+    <p>From:</p>
+    <select id="fromLang">
+      <option value="en">English</option>
+      <option value="ar">Arabic</option>
+      <option value="ps">Pashto</option>
+      <option value="fa">Dari</option>
+      <option value="ha">Hausa</option>
+    </select>
+    
+    <p>To:</p>
+    <select id="toLang">
+      <option value="en">English</option>
+      <option value="ar">Arabic</option>
+      <option value="ps">Pashto</option>
+      <option value="fa">Dari</option>
+      <option value="ha">Hausa</option>
+    </select>
+
+    <button onclick="translateText()">Translate</button>
+  </div>
+
+  <!-- Translated Text Output -->
+  <h3>Translated Text:</h3>
+  <div id="translatedText"></div>
+
+  <!-- Custom Right Click Message -->
+  <div id="rightClickMessage">Right click is disabled here</div>
+
+  <script>
+    var recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-US';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    let transcriptText = '';
+
+    recognition.onstart = function() {
+      console.log('Speech recognition started');
+      document.body.classList.add('recording');
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+    };
+
+    recognition.onresult = function(event) {
+      transcriptText = event.results[0][0].transcript;
+      console.log('Transcript: ' + transcriptText);
+      document.getElementById('transcript').innerHTML = transcriptText;
+    };
+
+    recognition.onerror = function(event) {
+      console.error('Speech recognition error: ' + event.error);
+    };
+
+    recognition.onend = function() {
+      console.log('Speech recognition ended');
+      document.body.classList.remove('recording');
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+    };
+
+    function startRecognition() {
+      recognition.start();
+    }
+
+    function stopRecognition() {
+      recognition.stop();
+    }
+
+    // Update transcriptText with typed input
+    function updateTranscript() {
+      transcriptText = document.getElementById('manualInput').value;
+      document.getElementById('transcript').innerHTML = transcriptText;
+    }
+
+    // Dynamic translation based on selected languages
+    function translateText() {
+      const fromLang = document.getElementById('fromLang').value;
+      const toLang = document.getElementById('toLang').value;
+      const apiUrl = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(transcriptText)}&langpair=${fromLang}|${toLang}`;
+      
+      fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+          const translatedText = data.responseData.translatedText;
+          document.getElementById('translatedText').innerHTML = translatedText;
+        })
+        .catch(error => {
+          console.error('Translation error:', error);
+          document.getElementById('translatedText').innerHTML = "Error translating text.";
+        });
+    }
+
+    // Disable right-click and show custom message
+    document.addEventListener('contextmenu', function(event) {
+      event.preventDefault();
+      showRightClickMessage();
+    });
+
+    // Show right-click disabled message
+    function showRightClickMessage() {
+      const messageElement = document.getElementById('rightClickMessage');
+      messageElement.classList.add('show');
+      
+      setTimeout(() => {
+        messageElement.classList.remove('show');
+      }, 2000); // Message disappears after 2 seconds
+    }
+
+    // Disable specific keyboard shortcuts
+    document.addEventListener('keydown', function(event) {
+      // Disable F12, Ctrl+Shift+I, Ctrl+Shift+C, Ctrl+U
+      if (event.key === "F12" || 
+          (event.ctrlKey && event.shiftKey && (event.key === "I" || event.key === "C")) || 
+          (event.ctrlKey && (event.key === "U"))) {
+        event.preventDefault();
+      }
+    });
+  </script>
+</body>
+</html>
